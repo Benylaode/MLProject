@@ -1,0 +1,31 @@
+FROM continuumio/miniconda3:latest
+
+WORKDIR /MLServer
+
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir mlflow
+
+ENV MLFLOW_ENABLE_SECURITY_MIDDLEWARE=false
+
+EXPOSE 5000
+
+CMD ["bash", "-c", "\
+echo 'Security Middleware:' $MLFLOW_ENABLE_SECURITY_MIDDLEWARE && \
+mlflow server \
+  --host 0.0.0.0 \
+  --port 5000 \
+  --backend-store-uri sqlite:///mlflow.db \
+  --default-artifact-root /MLServer/mlruns \
+  --allowed-hosts '*' \
+  --cors-allowed-origins '*' \
+"]
+# CMD ["bash", "-c", "\
+# mlflow server \
+#   --host 0.0.0.0 \
+#   --port 5000 \
+#   --backend-store-uri sqlite:///mlflow.db \
+#   --default-artifact-root /MLServer/mlruns \
+#   --serve-artifacts \
+#   --gunicorn-opts '--timeout 180' \
+# "]
+

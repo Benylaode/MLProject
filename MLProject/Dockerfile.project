@@ -1,0 +1,50 @@
+# FROM continuumio/miniconda3:latest
+
+# WORKDIR /MLProject
+
+# # Salin file proyek
+# COPY . /MLProject
+
+# # Install git dan MLflow
+# RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*
+# RUN pip install --no-cache-dir mlflow 
+#     # pip install --no-cache-dir -r requirements.txt
+
+
+# RUN conda env create -f python_env.yaml -n mlproject-env || conda env update -f python_env.yaml -n mlproject-env
+
+# CMD ["bash", "-c", "\
+# source activate mlproject-env && \
+# mlflow run . --experiment-name 'california_housing_exp' --tracking-uri http://mlflow-server:5000 \
+# "]
+
+FROM continuumio/miniconda3:latest
+
+WORKDIR /MLProject
+
+# Salin semua file proyek ke dalam container
+COPY . /MLProject
+
+# Install tools dasar
+RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*
+
+# Buat environment Conda sesuai file YAML
+RUN conda env create -f python_env.yaml -n mlproject-env || conda env update -f python_env.yaml -n mlproject-env
+
+# Pastikan Prometheus client terinstall (jika belum ada di YAML)
+RUN pip install --no-cache-dir mlflow 
+RUN conda run -n mlproject-env pip install --no-cache-dir prometheus-client
+
+
+# Ekspor port Prometheus exporter (misal port 8000)
+EXPOSE 8000
+
+# Jalankan exporter dan training MLflow bersamaan
+CMD ["bash", "-c", "\
+echo '🚀 Menjalankan Prometheus Exporter dan MLflow Project...' && \
+export MLFLOW_TRACKING_URI=http://mlflow-server:5000 && \
+conda run -n mlproject-env python 3.prometheus_exporter.py & \
+sleep 3 && \
+conda run -n mlproject-env mlflow run . --experiment-name 'california_housing_exp' \
+"]
+
