@@ -1,33 +1,67 @@
-name: MLflow CI Workflow
+name: California Housing MLOps Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
+    paths:
+      - 'preprocessing/automate_housing_california.py'
+      - 'preprocessing/Eksperimen_California_Housing.py'
+      - 'california_housing_data/california_housing.csv'
+      - 'docker-compose.yml'
   workflow_dispatch:
 
 jobs:
-  train-model:
+  pipeline:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
+    - name: 🔄 Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Set up Python
+    - name: 🐍 Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.12"
+        python-version: '3.10'
 
-    - name: Install dependencies
+    - name: 📦 Install Dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pandas scikit-learn mlflow
+        pip install pandas scikit-learn joblib matplotlib mlflow prometheus-client
 
-    - name: Run training
-      run: python modeling.py
+    - name: ⚙️ Jalankan Preprocessing
+      run: |
+        echo "🚀 Menjalankan preprocessing..."
+        python preprocessing/automate_housing_california.py
 
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: trained-model
-        path: mlruns/
+    - name: 🧠 Jalankan Eksperimen ML
+      run: |
+        echo "🤖 Menjalankan eksperimen model..."
+        python preprocessing/Eksperimen_California_Housing.py
+
+    - name: 🐳 Build Docker Compose
+      run: |
+        echo "🔧 Build Docker Compose..."
+        docker compose build
+
+    - name: 🚀 Jalankan Docker Compose (MLflow + Prometheus)
+      run: |
+        echo "🏗️ Menjalankan seluruh stack monitoring..."
+        docker compose up -d
+        echo "Menunggu 15 detik agar service siap..."
+        sleep 15
+        docker ps -a
+
+    - name: 💾 Commit Hasil Preprocessing
+      run: |
+        git config --global user.name 'GitHub Actions Bot'
+        git config --global user.email 'github-actions-bot@github.com'
+        # pastikan folder preprocessing sesuai di repo
+        git add california_housing_data/processed/
+        
+        if git status --porcelain | grep -q "processed/"; then
+          git commit -m "Auto: Update hasil preprocessing California Housing"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main
+        else
+          echo "✅ Tidak ada perubahan data preprocessing."
+        fi
